@@ -1,15 +1,22 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAlertStore } from '@/stores'
 import AlertCard from '@/components/AlertCard'
 import ReasonModal from '@/components/ReasonModal'
 import NotifyPanel from '@/components/NotifyPanel'
-import { AlertTriangle, ShieldCheck, Clock } from 'lucide-react'
+import { AlertTriangle, ShieldCheck, Clock, Play, SkipForward } from 'lucide-react'
 
 type TabKey = 'all' | 'pending' | 'processing' | 'completed'
 
 export default function Alerts() {
-  const { alerts, selectedAlertId, setSelectedAlert, reasonModalOpen } = useAlertStore()
+  const { alerts, selectedAlertId, setSelectedAlert, reasonModalOpen, setReasonModalOpen, getNextPendingAlert } = useAlertStore()
   const [tab, setTab] = useState<TabKey>('all')
+
+  useEffect(() => {
+    const pending = getNextPendingAlert()
+    if (pending && !selectedAlertId && !reasonModalOpen) {
+      setReasonModalOpen(true, pending.id)
+    }
+  }, [])
 
   const filteredAlerts = tab === 'all' ? alerts : alerts.filter((a) => a.status === tab)
   const selectedAlert = alerts.find((a) => a.id === selectedAlertId)
@@ -25,6 +32,16 @@ export default function Alerts() {
     { key: 'completed', label: '已完成', count: completedCount },
   ]
 
+  const handleStartQueue = () => {
+    const pending = getNextPendingAlert()
+    if (pending) setReasonModalOpen(true, pending.id)
+  }
+
+  const handleNextPending = () => {
+    const pending = getNextPendingAlert()
+    if (pending) setReasonModalOpen(true, pending.id)
+  }
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <header className="shrink-0 px-8 pt-6 pb-4 border-b border-surface-300/30">
@@ -33,9 +50,27 @@ export default function Alerts() {
             <h1 className="text-xl font-bold text-white">预警处置</h1>
             <p className="text-xs text-slate-500 mt-1">处理越界预警，确认原因并通知相关人</p>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            {pendingCount > 0 && !reasonModalOpen && (
+              <button
+                onClick={handleStartQueue}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-fence-breach/15 text-fence-breach text-xs font-semibold hover:bg-fence-breach/25 transition-colors border border-fence-breach/30 animate-pulse"
+              >
+                <Play className="w-3 h-3" />
+                开始处理队列（{pendingCount}）
+              </button>
+            )}
+            {pendingCount > 0 && reasonModalOpen && (
+              <button
+                onClick={handleNextPending}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-200 text-slate-300 text-xs font-medium hover:bg-surface-300 transition-colors"
+              >
+                <SkipForward className="w-3 h-3" />
+                下一条
+              </button>
+            )}
             {pendingCount > 0 && (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-fence-breach/10 text-fence-breach text-xs font-semibold animate-pulse">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-fence-breach/10 text-fence-breach text-xs font-semibold">
                 <AlertTriangle className="w-3.5 h-3.5" />
                 {pendingCount} 条待处理
               </div>

@@ -1,16 +1,19 @@
 import FilterBar from '@/components/FilterBar'
 import BusCard from '@/components/BusCard'
 import BusDetailDrawer from '@/components/BusDetailDrawer'
+import RiskSummaryView from '@/components/RiskSummaryView'
 import { useBusStore } from '@/stores'
 import { Activity } from 'lucide-react'
 
 export default function Monitor() {
-  const { getFilteredBuses, drawerOpen } = useBusStore()
+  const { getFilteredBuses, drawerOpen, filter } = useBusStore()
   const filteredBuses = getFilteredBuses()
 
   const normalCount = filteredBuses.filter((b) => b.status === 'normal').length
   const nearCount = filteredBuses.filter((b) => b.status === 'near_fence').length
   const breachedCount = filteredBuses.filter((b) => b.status === 'breached').length
+
+  const hasActiveFilter = filter.schoolId !== '' || filter.routeId !== '' || filter.plateNumber !== '' || filter.status !== 'all'
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -29,7 +32,20 @@ export default function Monitor() {
         <FilterBar />
       </header>
 
-      <div className="flex-1 overflow-y-auto px-8 py-6">
+      <div className="flex-1 overflow-y-auto px-8 py-6 space-y-5">
+        <RiskSummaryView />
+
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-slate-300">
+            车辆列表
+            {hasActiveFilter && (
+              <span className="ml-2 px-2 py-0.5 rounded-md bg-brand-600/15 text-brand-400 text-[10px] font-medium">
+                已筛选 · {filteredBuses.length}辆
+              </span>
+            )}
+          </h2>
+        </div>
+
         {filteredBuses.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-slate-500">
             <Activity className="w-12 h-12 mb-3 text-slate-600" />

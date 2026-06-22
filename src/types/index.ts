@@ -43,21 +43,28 @@ export interface Alert {
   busId: string
   plateNumber: string
   routeName: string
+  routeId: string
   schoolName: string
+  schoolId: string
   type: 'breach'
   status: AlertStatus
   reason: AlertReason | ''
   note: string
   fenceOutTime: string
   duration: string
+  durationMinutes: number
   handlerName: string
   handleTime: string
+  completeTime: string
   driverPhone: string
   driverName: string
   attendantName: string
 }
 
 export type HandleLogType = 'notification' | 'call' | 'note'
+export type NotifyChannel = 'sms' | 'system' | 'app'
+export type NotifyStatus = 'success' | 'failed' | 'duplicate'
+export type NotifyTarget = 'driver' | 'supervisor' | 'both'
 
 export interface HandleLog {
   id: string
@@ -67,13 +74,22 @@ export interface HandleLog {
   operatorName: string
   operateTime: string
   target?: string
+  channel?: NotifyChannel
+  notifyTarget?: NotifyTarget
+  notifyStatus?: NotifyStatus
+  failReason?: string
+  callDuration?: string
 }
 
 export interface RouteReview {
   routeId: string
   routeName: string
+  schoolId: string
   schoolName: string
   breachCount: number
+  totalDurationMinutes: number
+  avgDurationMinutes: number
+  maxDurationMinutes: number
   avgDuration: string
   maxDuration: string
   handlers: string[]

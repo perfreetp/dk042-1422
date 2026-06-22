@@ -2,7 +2,7 @@ import type { RouteReview } from '@/types'
 import { ArrowUpDown } from 'lucide-react'
 import { useState } from 'react'
 
-type SortKey = 'breachCount' | 'avgDuration' | 'maxDuration' | 'unclosedCount'
+type SortKey = 'breachCount' | 'avgDurationMinutes' | 'maxDurationMinutes' | 'unclosedCount'
 
 export default function RouteTable({ data }: { data: RouteReview[] }) {
   const [sortKey, setSortKey] = useState<SortKey>('breachCount')
@@ -20,18 +20,20 @@ export default function RouteTable({ data }: { data: RouteReview[] }) {
   const sorted = [...data].sort((a, b) => {
     const av = a[sortKey]
     const bv = b[sortKey]
-    if (typeof av === 'number' && typeof bv === 'number') {
-      return sortDesc ? bv - av : av - bv
-    }
-    return 0
+    return sortDesc ? bv - av : av - bv
   })
 
   const columns: { key: SortKey; label: string; align: string }[] = [
     { key: 'breachCount', label: '越界次数', align: 'text-center' },
-    { key: 'avgDuration', label: '平均时长', align: 'text-center' },
-    { key: 'maxDuration', label: '最长时长', align: 'text-center' },
+    { key: 'avgDurationMinutes', label: '平均时长', align: 'text-center' },
+    { key: 'maxDurationMinutes', label: '最长时长', align: 'text-center' },
     { key: 'unclosedCount', label: '未闭环', align: 'text-center' },
   ]
+
+  const formatDuration = (row: RouteReview, key: 'avgDurationMinutes' | 'maxDurationMinutes') => {
+    const v = row[key]
+    return v > 0 ? `${v}分钟` : '-'
+  }
 
   return (
     <div className="rounded-xl border border-surface-300/40 overflow-hidden">
@@ -52,6 +54,13 @@ export default function RouteTable({ data }: { data: RouteReview[] }) {
           </tr>
         </thead>
         <tbody className="divide-y divide-surface-300/20">
+          {sorted.length === 0 && (
+            <tr>
+              <td colSpan={7} className="px-4 py-8 text-center text-sm text-slate-500">
+                暂无数据
+              </td>
+            </tr>
+          )}
           {sorted.map((row) => (
             <tr key={row.routeId} className="hover:bg-surface-200/40 transition-colors">
               <td className="px-4 py-3">
@@ -66,10 +75,10 @@ export default function RouteTable({ data }: { data: RouteReview[] }) {
                 </span>
               </td>
               <td className="px-4 py-3 text-center">
-                <span className="text-xs font-mono text-slate-300">{row.avgDuration}</span>
+                <span className="text-xs font-mono text-slate-300">{formatDuration(row, 'avgDurationMinutes')}</span>
               </td>
               <td className="px-4 py-3 text-center">
-                <span className="text-xs font-mono text-slate-300">{row.maxDuration}</span>
+                <span className="text-xs font-mono text-slate-300">{formatDuration(row, 'maxDurationMinutes')}</span>
               </td>
               <td className="px-4 py-3 text-center">
                 {row.unclosedCount > 0 ? (
@@ -82,9 +91,13 @@ export default function RouteTable({ data }: { data: RouteReview[] }) {
               </td>
               <td className="px-4 py-3">
                 <div className="flex gap-1 flex-wrap">
-                  {row.handlers.map((h, i) => (
-                    <span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-surface-200 text-slate-400">{h}</span>
-                  ))}
+                  {row.handlers.length === 0 ? (
+                    <span className="text-[10px] text-slate-600">未指派</span>
+                  ) : (
+                    row.handlers.map((h, i) => (
+                      <span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-surface-200 text-slate-400">{h}</span>
+                    ))
+                  )}
                 </div>
               </td>
             </tr>
