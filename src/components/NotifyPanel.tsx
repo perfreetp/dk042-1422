@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useAlertStore } from '@/stores'
 import Timeline from './Timeline'
-import type { NotifyChannel, NotifyTarget, NotifyStatus } from '@/types'
-import { Send, Phone, Bell, CheckCircle, MessageSquare, Smartphone, Monitor, UserCheck, Users, AlertTriangle, Check, X, Loader2 } from 'lucide-react'
+import type { NotifyChannel, NotifyTarget, NotifyStatus, CallTarget } from '@/types'
+import { Send, Phone, Bell, CheckCircle, MessageSquare, Smartphone, Monitor, UserCheck, Users, AlertTriangle, Check, X, Loader2, RotateCcw, Clock, User } from 'lucide-react'
 
 const channels: { key: NotifyChannel; label: string; icon: typeof MessageSquare }[] = [
   { key: 'sms', label: '短信', icon: MessageSquare },
@@ -16,26 +16,53 @@ const targets: { key: NotifyTarget; label: string; desc: string; icon: typeof Us
   { key: 'both', label: '全部通知', desc: '司机+安全主管', icon: Bell },
 ]
 
+const callTargets: { key: CallTarget; label: string; desc: string }[] = [
+  { key: 'driver', label: '司机', desc: '' },
+  { key: 'attendant', label: '照管员', desc: '' },
+  { key: 'supervisor', label: '安全主管', desc: '' },
+]
+
 interface SendResult {
   notifyTarget: NotifyTarget
   status: NotifyStatus
   failReason?: string
 }
 
-export default function NotifyPanel() {
-  const { selectedAlertId, alerts, handleLogs, sendNotification, addCallLog, addNoteLog, completeAlert, hasNotified } = useAlertStore()
+export default function NotifyPanel({
+  alertId,
+  showFullControls = true,
+}: {
+  alertId?: string
+  showFullControls?: boolean
+}) {
+  const {
+    selectedAlertId,
+    alerts,
+    sendNotification,
+    resendNotification,
+    addCallLog,
+    addNoteLog,
+    completeAlert,
+    getHandleLogsForAlert,
+    getLastNotificationInfo,
+  } = useAlertStore()
+
   const [callContent, setCallContent] = useState('')
   const [callDuration, setCallDuration] = useState('')
+  const [callTarget, setCallTarget] = useState<CallTarget>('driver')
   const [noteContent, setNoteContent] = useState('')
   const [channel, setChannel] = useState<NotifyChannel>('sms')
   const [notifyTarget, setNotifyTarget] = useState<NotifyTarget>('both')
   const [lastResults, setLastResults] = useState<SendResult[]>([])
   const [isSending, setIsSending] = useState(false)
+  const [resendingId, setResendingId] = useState<string | null>(null)
 
-  const alert = alerts.find((a) => a.id === selectedAlertId)
+  const effectiveAlertId = alertId || selectedAlertId
+  const alert = alerts.find((a) => a.id === effectiveAlertId)
   if (!alert) return null
 
-  const logs = handleLogs.filter((l) => l.alertId === alert.id)
+  const logs = getHandleLogsForAlert(alert.id)
+  const showActions = alert.status === 'processing' && showFullControls
 
   const handleSendNotify = async () => {
     setIsSending(true)
@@ -46,9 +73,19 @@ export default function NotifyPanel() {
     setIsSending(false)
   }
 
+  const handleResend = async (logId: string) => {
+    setResendingId(logId)
+    await new Promise((r) => setTimeout(r, 450))
+    const result = resendNotification(logId)
+    if (result) {
+      setLastResults([result])
+    }
+    setResendingId(null)
+  }
+
   const handleAddCall = () => {
     if (!callContent.trim()) return
-    addCallLog(alert.id, callContent.trim(), callDuration.trim() || undefined)
+    addCallLog(alert.id, callContent.trim(), callTarget, callDuration.trim() || undefined)
     setCallContent('')
     setCallDuration('')
   }
@@ -65,11 +102,14 @@ export default function NotifyPanel() {
   const failCount = lastResults.filter((r) => r.status === 'failed').length
   const dupCount = lastResults.filter((r) => r.status === 'duplicate').length
 
+  const lastInfoForDuplicate = (tgt: NotifyTarget) =>
+    notifyTarget === 'both' || notifyTarget === tgt ? getLastNotificationInfo(alert.id, channel, tgt) : null
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-slate-300">处置记录</h3>
-        {alert.status === 'processing' && (
+        {showActions && (
           <button
             onClick={handleComplete}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-fence-normal/15 text-fence-normal text-xs font-medium hover:bg-fence-normal/25 transition-colors"
@@ -80,9 +120,9 @@ export default function NotifyPanel() {
         )}
       </div>
 
-      <Timeline logs={logs} />
+      <Timeline logs={logs} onResend={showActions ? handleResend : undefined} resendingId={resendingId} />
 
-      {alert.status === 'processing' && (
+      {showActions && (
         <div className="space-y-4 pt-3 border-t border-surface-300/30">
           <div>
             <label className="text-[11px] text-slate-400 font-medium mb-2 block">发送通知</label>
@@ -91,11 +131,14 @@ export default function NotifyPanel() {
               {channels.map((c) => {
                 const Icon = c.icon
                 const isSelected = channel === c.key
+                const dupInfoDriver = c.key === channel ? lastInfoForDuplicate('driver') : null
+                const dupInfoSupervisor = c.key === channel ? lastInfoForDuplicate('supervisor') : null
+                const hasAnySent = dupInfoDriver?.hasSent || dupInfoSupervisor?.hasSent
                 return (
                   <button
                     key={c.key}
                     onClick={() => setChannel(c.key)}
-                    className={`flex items-center justify-center gap-1 h-9 rounded-lg text-xs font-medium transition-all
+                    className={`relative flex items-center justify-center gap-1 h-9 rounded-lg text-xs font-medium transition-all
                       ${isSelected
                         ? 'bg-brand-600/20 text-brand-400 border border-brand-500/40'
                         : 'bg-surface-100 text-slate-400 border border-surface-300/50 hover:border-surface-400 hover:text-slate-300'
@@ -103,10 +146,30 @@ export default function NotifyPanel() {
                   >
                     <Icon className="w-3.5 h-3.5" />
                     {c.label}
+                    {hasAnySent && (
+                      <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-fence-near animate-pulse" title="已发送过" />
+                    )}
                   </button>
                 )
               })}
             </div>
+
+            {notifyTarget !== 'both' && (
+              <div className="mb-2">
+                {notifyTarget !== 'both' && (() => {
+                  const info = getLastNotificationInfo(alert.id, channel, notifyTarget)
+                  if (info.hasSent) {
+                    return (
+                      <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-md bg-surface-100 border border-surface-300/40 text-[10px] text-slate-400">
+                        <Clock className="w-2.5 h-2.5" />
+                        上次发送给{info.lastTarget}：{info.lastTime}
+                      </div>
+                    )
+                  }
+                  return null
+                })()}
+              </div>
+            )}
 
             <div className="grid grid-cols-3 gap-1.5 mb-2.5">
               {targets.map((t) => {
@@ -159,7 +222,7 @@ export default function NotifyPanel() {
                         dup ? <AlertTriangle className="w-3.5 h-3.5 text-slate-500 shrink-0" /> :
                         <X className="w-3.5 h-3.5 text-fence-breach shrink-0" />}
                       <span className="shrink-0">{label}：</span>
-                      <span className="truncate">
+                      <span className="truncate flex-1">
                         {ok ? '发送成功' : dup ? '已发送过（重复发送）' : `发送失败 — ${r.failReason}`}
                       </span>
                     </div>
@@ -180,11 +243,30 @@ export default function NotifyPanel() {
               记录电话沟通
             </label>
             <div className="space-y-1.5">
+              <div className="grid grid-cols-3 gap-1.5">
+                {callTargets.map((t) => {
+                  const isSelected = callTarget === t.key
+                  return (
+                    <button
+                      key={t.key}
+                      onClick={() => setCallTarget(t.key)}
+                      className={`flex items-center justify-center gap-1 h-8 rounded-lg text-[11px] font-medium transition-all
+                        ${isSelected
+                          ? 'bg-fence-near/20 text-fence-near border border-fence-near/40'
+                          : 'bg-surface-100 text-slate-400 border border-surface-300/50 hover:border-surface-400 hover:text-slate-300'
+                        }`}
+                    >
+                      <User className="w-2.5 h-2.5" />
+                      {t.label}
+                    </button>
+                  )
+                })}
+              </div>
               <input
                 type="text"
                 value={callContent}
                 onChange={(e) => setCallContent(e.target.value)}
-                placeholder="与司机沟通内容..."
+                placeholder={`与${callTargets.find(c => c.key === callTarget)?.label}沟通内容...`}
                 className="w-full h-9 px-3 rounded-lg bg-surface-100 border border-surface-300/50 text-xs text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-brand-500 transition-all"
               />
               <div className="flex gap-1.5">

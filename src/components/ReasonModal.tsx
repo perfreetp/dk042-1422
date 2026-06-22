@@ -13,13 +13,13 @@ const reasonIcons: Record<AlertReason, string> = {
 }
 
 export default function ReasonModal() {
-  const { selectedAlertId, alerts, confirmReason, closeAndAdvance, getNextPendingAlert } = useAlertStore()
+  const { modalAlertId, alerts, confirmReason, closeAndAdvance, getNextPendingAlert, getAlertDurationText } = useAlertStore()
   const [selectedReason, setSelectedReason] = useState<AlertReason | null>(null)
   const [note, setNote] = useState('')
 
-  const alert = alerts.find((a) => a.id === selectedAlertId)
+  const alert = alerts.find((a) => a.id === modalAlertId)
   const next = getNextPendingAlert()
-  const hasMore = next && next.id !== selectedAlertId
+  const hasMore = next && next.id !== modalAlertId
 
   if (!alert || alert.status !== 'pending') return null
 
@@ -50,7 +50,7 @@ export default function ReasonModal() {
             </div>
             <div>
               <h3 className="text-sm font-bold text-white">越界原因确认</h3>
-              <p className="text-[11px] text-slate-500">{alert.plateNumber} · {alert.routeName} · 已越界 {alert.duration}</p>
+              <p className="text-[11px] text-slate-500">{alert.plateNumber} · {alert.routeName} · 已越界 {getAlertDurationText(alert)}</p>
             </div>
           </div>
           <button
@@ -92,9 +92,9 @@ export default function ReasonModal() {
           </div>
 
           <div className="flex items-center justify-between mb-4 px-3 py-2 rounded-lg bg-surface-100/60 border border-surface-300/40">
-            <span className="text-[11px] text-slate-500">当前排队：</span>
+            <span className="text-[11px] text-slate-500">当前排队（按越界时间从新到旧）：</span>
             <div className="flex items-center gap-1.5">
-              {alerts.filter((a) => a.status === 'pending').map((a, i) => (
+              {alerts.filter((a) => a.status === 'pending').sort((a, b) => new Date(b.fenceOutTime).getTime() - new Date(a.fenceOutTime).getTime()).map((a, i) => (
                 <div
                   key={a.id}
                   className={`px-2 py-0.5 rounded-full text-[10px] font-mono ${
@@ -102,6 +102,7 @@ export default function ReasonModal() {
                       ? 'bg-fence-breach/20 text-fence-breach border border-fence-breach/40'
                       : 'bg-surface-300/40 text-slate-400'
                   }`}
+                  title={a.fenceOutTime}
                 >
                   {i + 1}
                 </div>

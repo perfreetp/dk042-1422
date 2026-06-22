@@ -30,6 +30,7 @@ export interface Bus {
   attendantName: string
   driverName: string
   driverPhone: string
+  attendantPhone: string
   lastUpdateTime: string
   lastFenceInTime: string
   lastFenceOutTime: string
@@ -59,12 +60,15 @@ export interface Alert {
   driverPhone: string
   driverName: string
   attendantName: string
+  attendantPhone: string
+  supervisorName: string
 }
 
 export type HandleLogType = 'notification' | 'call' | 'note'
 export type NotifyChannel = 'sms' | 'system' | 'app'
 export type NotifyStatus = 'success' | 'failed' | 'duplicate'
 export type NotifyTarget = 'driver' | 'supervisor' | 'both'
+export type CallTarget = 'driver' | 'attendant' | 'supervisor'
 
 export interface HandleLog {
   id: string
@@ -79,6 +83,8 @@ export interface HandleLog {
   notifyStatus?: NotifyStatus
   failReason?: string
   callDuration?: string
+  callTarget?: CallTarget
+  originalLogId?: string
 }
 
 export interface RouteReview {

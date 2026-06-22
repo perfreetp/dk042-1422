@@ -2,10 +2,11 @@ import { useAlertStore } from '@/stores'
 import StatCard from '@/components/StatCard'
 import RouteTable from '@/components/RouteTable'
 import UnclosedList from '@/components/UnclosedList'
+import AlertTimelineDrawer from '@/components/AlertTimelineDrawer'
 import { AlertTriangle, Clock, AlertOctagon, Users, RefreshCw } from 'lucide-react'
 
 export default function Review() {
-  const { getReviewStats, computeRouteReviews } = useAlertStore()
+  const { getReviewStats, computeRouteReviews, timelineDrawerOpen } = useAlertStore()
   const stats = getReviewStats()
   const routeReviews = computeRouteReviews()
 
@@ -15,7 +16,7 @@ export default function Review() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold text-white">事后复盘</h1>
-            <p className="text-xs text-slate-500 mt-1">按线路统计越界数据，跟进未闭环事项 · 数据与处置实时同步</p>
+            <p className="text-xs text-slate-500 mt-1">按线路统计越界数据，跟进未闭环事项 · 数据与处置实时同步 · 点击线路或未闭环项查看详情</p>
           </div>
           <div className="flex items-center gap-3">
             <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-fence-normal/10 text-fence-normal text-[10px] font-medium">
@@ -73,6 +74,8 @@ export default function Review() {
           <UnclosedList />
         </section>
       </div>
+
+      {timelineDrawerOpen && <AlertTimelineDrawer />}
     </div>
   )
 }

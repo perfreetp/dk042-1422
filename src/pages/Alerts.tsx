@@ -3,13 +3,15 @@ import { useAlertStore } from '@/stores'
 import AlertCard from '@/components/AlertCard'
 import ReasonModal from '@/components/ReasonModal'
 import NotifyPanel from '@/components/NotifyPanel'
-import { AlertTriangle, ShieldCheck, Clock, Play, SkipForward } from 'lucide-react'
+import AlertTimelineDrawer from '@/components/AlertTimelineDrawer'
+import { AlertTriangle, ShieldCheck, Clock, Play, SkipForward, ArrowUpDown } from 'lucide-react'
 
 type TabKey = 'all' | 'pending' | 'processing' | 'completed'
 
 export default function Alerts() {
-  const { alerts, selectedAlertId, setSelectedAlert, reasonModalOpen, setReasonModalOpen, getNextPendingAlert } = useAlertStore()
+  const { alerts, selectedAlertId, setSelectedAlert, reasonModalOpen, setReasonModalOpen, getNextPendingAlert, getAlertDurationText, timelineDrawerOpen, setTimelineDrawerOpen } = useAlertStore()
   const [tab, setTab] = useState<TabKey>('all')
+  const [sortDesc, setSortDesc] = useState(true)
 
   useEffect(() => {
     const pending = getNextPendingAlert()
@@ -18,7 +20,11 @@ export default function Alerts() {
     }
   }, [])
 
-  const filteredAlerts = tab === 'all' ? alerts : alerts.filter((a) => a.status === tab)
+  const sortedAlerts = [...alerts].sort((a, b) => {
+    const diff = new Date(b.fenceOutTime).getTime() - new Date(a.fenceOutTime).getTime()
+    return sortDesc ? diff : -diff
+  })
+  const filteredAlerts = tab === 'all' ? sortedAlerts : sortedAlerts.filter((a) => a.status === tab)
   const selectedAlert = alerts.find((a) => a.id === selectedAlertId)
 
   const pendingCount = alerts.filter((a) => a.status === 'pending').length
@@ -48,7 +54,7 @@ export default function Alerts() {
         <div className="flex items-center justify-between mb-5">
           <div>
             <h1 className="text-xl font-bold text-white">预警处置</h1>
-            <p className="text-xs text-slate-500 mt-1">处理越界预警，确认原因并通知相关人</p>
+            <p className="text-xs text-slate-500 mt-1">按越界时间从新到旧处理，先弹最近一条 · 确认后自动跳下一条 · 右侧保持刚进入处理中的预警</p>
           </div>
           <div className="flex items-center gap-3">
             {pendingCount > 0 && !reasonModalOpen && (
@@ -78,21 +84,30 @@ export default function Alerts() {
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5">
-          {tabs.map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all duration-200
-                ${tab === t.key
-                  ? 'bg-surface-300/80 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-300 hover:bg-surface-200/50'
-                }`}
-            >
-              {t.label}
-              <span className="ml-1 opacity-60">{t.count}</span>
-            </button>
-          ))}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            {tabs.map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all duration-200
+                  ${tab === t.key
+                    ? 'bg-surface-300/80 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-300 hover:bg-surface-200/50'
+                  }`}
+              >
+                {t.label}
+                <span className="ml-1 opacity-60">{t.count}</span>
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => setSortDesc(!sortDesc)}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] text-slate-400 hover:text-slate-300 hover:bg-surface-200/50 transition-colors"
+          >
+            <ArrowUpDown className="w-3 h-3" />
+            {sortDesc ? '最新优先' : '最早优先'}
+          </button>
         </div>
       </header>
 
@@ -101,7 +116,7 @@ export default function Alerts() {
           <div className="space-y-3 max-w-2xl">
             {filteredAlerts.map((alert, i) => (
               <div key={alert.id} className="animate-slide-in-left" style={{ animationDelay: `${i * 60}ms`, animationFillMode: 'backwards' }}>
-                <AlertCard alert={alert} />
+                <AlertCard alert={alert} onTimelineClick={() => setTimelineDrawerOpen(true, alert.id)} />
               </div>
             ))}
             {filteredAlerts.length === 0 && (
@@ -127,7 +142,7 @@ export default function Alerts() {
                     <Clock className="w-3 h-3" />
                     越界时长
                   </div>
-                  <span className="text-sm font-bold font-mono text-fence-breach">{selectedAlert.duration}</span>
+                  <span className="text-sm font-bold font-mono text-fence-breach">{getAlertDurationText(selectedAlert)}</span>
                 </div>
                 <div className="px-3 py-2.5 rounded-lg bg-surface-100 border border-surface-300/30">
                   <div className="flex items-center gap-1.5 text-[10px] text-slate-500 mb-1">
@@ -145,6 +160,7 @@ export default function Alerts() {
       </div>
 
       {reasonModalOpen && <ReasonModal />}
+      {timelineDrawerOpen && <AlertTimelineDrawer />}
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import type { Alert } from '@/types'
 import { useAlertStore } from '@/stores'
-import { Clock, MapPin, AlertTriangle, ChevronRight } from 'lucide-react'
+import { Clock, MapPin, AlertTriangle, ChevronRight, Radio, History } from 'lucide-react'
 
 const statusLabels: Record<string, { label: string; color: string; bg: string }> = {
   pending: { label: '待处理', color: 'text-fence-breach', bg: 'bg-fence-breach/10' },
@@ -8,9 +8,11 @@ const statusLabels: Record<string, { label: string; color: string; bg: string }>
   completed: { label: '已完成', color: 'text-fence-normal', bg: 'bg-fence-normal/10' },
 }
 
-export default function AlertCard({ alert }: { alert: Alert }) {
-  const { setSelectedAlert, setReasonModalOpen } = useAlertStore()
+export default function AlertCard({ alert, onTimelineClick }: { alert: Alert; onTimelineClick?: () => void }) {
+  const { setSelectedAlert, setReasonModalOpen, getAlertDurationText } = useAlertStore()
   const config = statusLabels[alert.status]
+  const realDuration = getAlertDurationText(alert)
+  const isLive = alert.status !== 'completed'
 
   const handleClick = () => {
     setSelectedAlert(alert.id)
@@ -19,10 +21,14 @@ export default function AlertCard({ alert }: { alert: Alert }) {
     }
   }
 
+  const handleTimelineClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    onTimelineClick?.()
+  }
+
   return (
-    <button
-      onClick={handleClick}
-      className={`group w-full text-left rounded-xl border transition-all duration-200 hover:shadow-lg hover:shadow-black/20 hover:-translate-y-0.5
+    <div
+      className={`group w-full rounded-xl border transition-all duration-200 hover:shadow-lg hover:shadow-black/20 hover:-translate-y-0.5 cursor-pointer
         ${alert.status === 'pending'
           ? 'border-fence-breach/40 bg-fence-breach/5 animate-pulse-border'
           : alert.status === 'processing'
@@ -30,7 +36,7 @@ export default function AlertCard({ alert }: { alert: Alert }) {
           : 'border-surface-300/40 bg-surface-50'
         }`}
     >
-      <div className="flex items-center p-4">
+      <div className="flex items-center p-4" onClick={handleClick}>
         <div className={`w-1 h-12 rounded-full shrink-0 mr-4 ${
           alert.status === 'pending' ? 'bg-fence-breach' : alert.status === 'processing' ? 'bg-fence-near' : 'bg-fence-normal'
         }`} />
@@ -49,7 +55,8 @@ export default function AlertCard({ alert }: { alert: Alert }) {
             </span>
             <span className="flex items-center gap-1">
               <Clock className="w-3 h-3" />
-              越界 {alert.duration}
+              越界 {realDuration}
+              {isLive && <Radio className="w-2.5 h-2.5 text-fence-breach animate-pulse" />}
             </span>
           </div>
           {alert.reason && (
@@ -60,7 +67,16 @@ export default function AlertCard({ alert }: { alert: Alert }) {
           )}
         </div>
 
-        <div className="flex items-center gap-3 ml-4">
+        <div className="flex items-center gap-2 ml-4">
+          {onTimelineClick && (
+            <button
+              onClick={handleTimelineClick}
+              className="w-7 h-7 rounded-lg bg-surface-200/50 hover:bg-surface-300/70 flex items-center justify-center transition-colors"
+              title="查看处置时间线"
+            >
+              <History className="w-3.5 h-3.5 text-slate-400" />
+            </button>
+          )}
           {alert.status === 'pending' && (
             <div className="flex items-center gap-1 text-xs text-fence-breach font-medium">
               <AlertTriangle className="w-3.5 h-3.5" />
@@ -70,6 +86,6 @@ export default function AlertCard({ alert }: { alert: Alert }) {
           <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-slate-400 transition-colors" />
         </div>
       </div>
-    </button>
+    </div>
   )
 }

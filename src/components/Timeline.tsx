@@ -1,5 +1,5 @@
 import type { HandleLog } from '@/types'
-import { Bell, Phone, FileText, Check, X, AlertCircle, Clock } from 'lucide-react'
+import { Bell, Phone, FileText, Check, X, AlertCircle, Clock, RotateCcw, Loader2, User } from 'lucide-react'
 
 const typeConfig = {
   notification: { icon: Bell, label: '通知', color: 'text-brand-400', bg: 'bg-brand-500/15', line: 'bg-brand-500/30' },
@@ -19,7 +19,21 @@ const channelLabel: Record<string, string> = {
   app: 'APP',
 }
 
-export default function Timeline({ logs }: { logs: HandleLog[] }) {
+const callTargetLabel: Record<string, string> = {
+  driver: '司机',
+  attendant: '照管员',
+  supervisor: '安全主管',
+}
+
+export default function Timeline({
+  logs,
+  onResend,
+  resendingId,
+}: {
+  logs: HandleLog[]
+  onResend?: (logId: string) => void
+  resendingId?: string | null
+}) {
   if (logs.length === 0) {
     return (
       <div className="text-center py-8 text-slate-500 text-sm">
@@ -35,6 +49,9 @@ export default function Timeline({ logs }: { logs: HandleLog[] }) {
       {sorted.map((log, i) => {
         const config = typeConfig[log.type]
         const Icon = config.icon
+        const isFailedNotif = log.type === 'notification' && log.notifyStatus === 'failed' && !log.originalLogId
+        const isResending = resendingId === log.id
+        const isResent = !!log.originalLogId
         return (
           <div key={log.id} className="relative flex gap-4 pb-6 last:pb-0">
             {i < sorted.length - 1 && (
@@ -45,10 +62,19 @@ export default function Timeline({ logs }: { logs: HandleLog[] }) {
             </div>
             <div className="flex-1 min-w-0 pt-0.5">
               <div className="flex items-center gap-2 flex-wrap mb-1">
-                <span className={`text-[11px] font-semibold ${config.color}`}>{config.label}</span>
+                <span className={`text-[11px] font-semibold ${config.color}`}>
+                  {config.label}
+                  {isResent && <span className="ml-1 opacity-60">（重发）</span>}
+                </span>
                 {log.type === 'notification' && log.channel && (
                   <span className="px-1.5 py-0.5 rounded bg-surface-300/50 text-[9px] text-slate-400 font-mono">
                     {channelLabel[log.channel] || log.channel}
+                  </span>
+                )}
+                {log.type === 'call' && log.callTarget && (
+                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-surface-300/50 text-[9px] text-slate-400">
+                    <User className="w-2 h-2" />
+                    {callTargetLabel[log.callTarget] || log.callTarget}
                   </span>
                 )}
                 {log.type === 'notification' && log.notifyStatus && (() => {
@@ -82,6 +108,19 @@ export default function Timeline({ logs }: { logs: HandleLog[] }) {
                 <span className="text-[10px] text-slate-500">操作人: {log.operatorName}</span>
                 {log.target && <span className="text-[10px] text-slate-500">对象: {log.target}</span>}
                 {log.failReason && <span className="text-[10px] text-fence-breach">原因: {log.failReason}</span>}
+                {isFailedNotif && onResend && (
+                  <button
+                    onClick={() => onResend(log.id)}
+                    disabled={isResending}
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-fence-breach/10 text-fence-breach text-[10px] font-medium hover:bg-fence-breach/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {isResending ? (
+                      <><Loader2 className="w-2.5 h-2.5 animate-spin" />重发中</>
+                    ) : (
+                      <><RotateCcw className="w-2.5 h-2.5" />一键重发</>
+                    )}
+                  </button>
+                )}
               </div>
             </div>
           </div>

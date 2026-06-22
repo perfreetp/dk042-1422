@@ -1,10 +1,19 @@
 import type { Alert } from '@/types'
 import { useAlertStore } from '@/stores'
-import { AlertTriangle, Clock, User, ChevronRight } from 'lucide-react'
+import { AlertTriangle, Clock, User, ChevronRight, Radio } from 'lucide-react'
 
 export default function UnclosedList() {
-  const { alerts, setSelectedAlert } = useAlertStore()
-  const unclosed = alerts.filter((a) => a.status !== 'completed')
+  const { alerts, setTimelineDrawerOpen, getAlertDurationText, durationTick } = useAlertStore()
+
+  void durationTick
+
+  const unclosed = alerts
+    .filter((a) => a.status !== 'completed')
+    .sort((a, b) => {
+      const da = new Date(a.fenceOutTime).getTime()
+      const db = new Date(b.fenceOutTime).getTime()
+      return db - da
+    })
 
   if (unclosed.length === 0) {
     return (
@@ -21,17 +30,21 @@ export default function UnclosedList() {
   return (
     <div className="space-y-3">
       {unclosed.map((alert) => (
-        <UnclosedItem key={alert.id} alert={alert} onClick={() => setSelectedAlert(alert.id)} />
+        <UnclosedItem key={alert.id} alert={alert} onClick={() => setTimelineDrawerOpen(true, alert.id)} />
       ))}
     </div>
   )
 }
 
 function UnclosedItem({ alert, onClick }: { alert: Alert; onClick: () => void }) {
+  const { getAlertDurationText } = useAlertStore()
+  const realDuration = getAlertDurationText(alert)
+  const isLive = alert.status !== 'completed'
+
   return (
     <button
       onClick={onClick}
-      className="group w-full text-left flex items-center gap-4 p-4 rounded-xl border border-fence-breach/30 bg-fence-breach/5 hover:bg-fence-breach/10 transition-all"
+      className="group w-full text-left flex items-center gap-4 p-4 rounded-xl border border-fence-breach/30 bg-fence-breach/5 hover:bg-fence-breach/10 hover:border-fence-breach/50 transition-all"
     >
       <div className="w-10 h-10 rounded-lg bg-fence-breach/15 flex items-center justify-center shrink-0">
         <AlertTriangle className="w-5 h-5 text-fence-breach" />
@@ -46,9 +59,13 @@ function UnclosedItem({ alert, onClick }: { alert: Alert; onClick: () => void })
           </span>
         </div>
         <div className="flex items-center gap-4 text-xs text-slate-400">
-          <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{alert.duration}</span>
+          <span className="flex items-center gap-1">
+            <Clock className="w-3 h-3" />
+            {realDuration}
+            {isLive && <Radio className="w-2.5 h-2.5 text-fence-breach animate-pulse" />}
+          </span>
           <span className="flex items-center gap-1"><User className="w-3 h-3" />{alert.handlerName || '未指派'}</span>
-          <span>{alert.schoolName}</span>
+          <span>{alert.schoolName} · {alert.routeName}</span>
         </div>
       </div>
       <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-slate-400 transition-colors" />
